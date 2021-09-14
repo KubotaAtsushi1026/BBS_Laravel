@@ -241,6 +241,12 @@ class MessagesController extends Controller
      */
     public function destroy(Message $message)
     {
-        dd('destroy');
+        // 削除対象のインスタンスをDBから削除
+        // $message->delete();
+        Message::destroy($message->id);
+        session(['flash_message' => 'id: ' . $message->id . 'の投稿を削除しました']);
+        
+        // indexアクションにリダイレクト
+        return redirect('/');
     }
 }
