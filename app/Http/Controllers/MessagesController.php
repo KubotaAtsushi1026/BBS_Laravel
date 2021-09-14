@@ -17,8 +17,13 @@ class MessagesController extends Controller
          // Messageモデルを使って、MySQLのmessagesテーブルから全データ取得
         $messages = Message::all();
         
-        // フラッシュメッセージにnull をセット
-        $flash_message = null;
+        // フラッシュメッセージをセッションから取得
+        $flash_message = session('flash_message');
+        // セッション情報の破棄
+        session()->forget('flash_message');  
+        // $flash_message = $_SESSION['flash_message'];
+        // $_SESSION['flash_message'] = null;
+        
         // エラーメッセージにnullをセット
         $errors = null;
     
@@ -42,8 +47,28 @@ class MessagesController extends Controller
      */
     public function create()
     {
-        dd('createが呼ばれた');
-    }
+        // 空のメッセージインスタンスを作成
+        $message = new Message();
+        
+        // セッションにメッセージが保存されていれば
+        if(session('message')){
+            // セッションからメッセージ取得
+            $message = session('message');
+            // セッション情報の破棄
+            session()->forget('message');
+        }
+        
+        // フラッシュメッセージをnullにセット
+        $flash_message = null;
+        
+        // エラーメッセージをセッションから取得
+        $errors = session('errors');
+        // セッション情報の破棄
+        session()->forget('errors');
+        
+        
+        // 連想配列のデータを3セット（viewで引き出すキーワードと値のセット）引き連れてviewを呼び出す
+        return view('messages.create', compact('message', 'flash_message', 'errors'));    }
 
     /**
      * Store a newly created resource in storage.
@@ -53,7 +78,58 @@ class MessagesController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $name = $request->input('name');
+        $title = $request->input('title');
+        $body = $request->input('body');
+        // 画像ファイル情報の取得だけ特殊
+        $file =  $request->image;
+        
+        // 画像ファイルが選択されていれば
+        if ($file) { 
+        
+            // 現在時刻ともともとのファイル名を組み合わせてランダムなファイル名作成
+            $image = time() . $file->getClientOriginalName();
+            // アップロードするフォルダ名取得
+            $target_path = public_path('uploads/');
+
+        } else { // ファイルが選択されていなければ
+            $image = null;
+        }
+        
+        // 空のメッセージインスタンスを作成
+        $message = new Message();
+        
+        // 入力された値をセット
+        $message->name = $name;
+        $message->title = $title;
+        $message->body = $body;
+        $message->image = $image;
+        
+        // 入力エラーチェック
+        $errors = $message->validate();
+
+        // 入力エラーが1つもなければ
+        if(count($errors) === 0){
+            // 画像アップロード処理
+            $file->move($target_path, $image);
+            
+            // メッセージインスタンスをデータベースに保存
+            $message->save();
+            
+            // セッションにflash_messageを保存
+            // $_SESSION['flash_message'] =
+            session(['flash_message' => '新規投稿が成功しました']);
+            
+            // indexアクションにリダイレクト
+            return redirect('/');
+            
+        }else{
+            // セッションに、入力したメッセージインスタンス と errors保存
+            session(['errors' => $errors, 'message' => $message]);
+            
+            // createアクションにリダイレクト
+            return redirect('/messages/create');
+        }
     }
 
     /**
